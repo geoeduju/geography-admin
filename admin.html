@@ -3,108 +3,771 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>수업 활동 통합 관리자 페이지</title>
+  <title>지역화 전략 관리자 페이지</title>
+  <!-- Tailwind CSS & FontAwesome Icons & Pretendard Font -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: 'Pretendard', sans-serif, Arial; margin: 0; padding: 20px; background-color: #f4f6f9; color: #333; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    h1 { margin: 0; font-size: 24px; color: #1a252f; }
-    .tab-container { display: flex; gap: 10px; margin-bottom: 15px; }
-    .tab-btn { padding: 12px 24px; font-size: 15px; border: none; background-color: #e2e8f0; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-    .tab-btn.active { background-color: #3b82f6; color: white; }
-    .refresh-btn { padding: 10px 18px; background-color: #10b981; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-    .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border-bottom: 1px solid #e5e7eb; padding: 12px; text-align: left; font-size: 14px; white-space: nowrap; }
-    th { background-color: #f8fafc; color: #475569; font-weight: 600; }
-    tr:hover { background-color: #f1f5f9; }
-    .loading { text-align: center; padding: 40px; font-weight: bold; color: #64748b; }
-    .img-preview { max-width: 80px; max-height: 80px; border-radius: 4px; object-fit: cover; vertical-align: middle; }
+    * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; letter-spacing: -0.01em; }
+    .fade-in { animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
-<body>
+<body class="bg-slate-50 min-h-screen text-slate-800 p-4 sm:p-6 lg:p-8">
 
-  <div class="header">
-    <h1>📊 수업 활동 통합 관리자</h1>
-    <button class="refresh-btn" onclick="loadData()">🔄 데이터 새로고침</button>
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-medium z-50 hidden fade-in">
+    메시지
   </div>
 
-  <div class="tab-container">
-    <button class="tab-btn active" id="btn-app1" onclick="switchTab('app1')">📝 웹앱 1 (퀴즈/점수)</button>
-    <button class="tab-btn" id="btn-app2" onclick="switchTab('app2')">🎨 웹앱 2 (작품/투표)</button>
-  </div>
+  <div class="max-w-7xl mx-auto space-y-5">
+    
+    <!-- 최상단 헤더 & 활동 선택 메인 탭 -->
+    <div class="bg-white rounded-xl p-5 border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center space-x-3.5">
+        <div class="w-10 h-10 rounded-lg bg-slate-900 text-white flex items-center justify-center text-base shadow-sm shrink-0">
+          <i class="fa-solid fa-chalkboard-user"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-snug">지역화 전략 관리자 페이지</h1>
+          <p class="text-xs text-slate-500 mt-0.5 font-medium">Ⅺ-2. 우리나라 여러 지역의 경쟁력</p>
+        </div>
+      </div>
 
-  <div class="card">
-    <div id="loading" class="loading">데이터를 불러오는 중입니다...</div>
-    <div id="table-container"></div>
-  </div>
+      <!-- 메인 활동 전환 탭 버튼 -->
+      <div class="flex items-center bg-slate-100/80 p-1 rounded-lg border border-slate-200/60 w-full md:w-auto">
+        <button id="mainTabQuiz" onclick="switchMainTab('quiz')" class="flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm flex items-center justify-center gap-2">
+          <i class="fa-solid fa-square-poll-vertical"></i>
+          <span>1. 지역화 전략 Quiz</span>
+        </button>
+        <button id="mainTabMascot" onclick="switchMainTab('mascot')" class="flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-medium transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-palette"></i>
+          <span>2. 우리 지역 마스코트 만들기</span>
+        </button>
+      </div>
+    </div>
 
-  <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwbpopRqKpJYo1vQgn4_zz21fXI--CrE3RzywEJ_HhdOiILXV7lsJMk_OdZVjEdZwy8/exec";
-
-    let globalData = { app1: [], app2: [] };
-    let currentTab = 'app1';
-
-    async function loadData() {
-      const container = document.getElementById('table-container');
-      const loading = document.getElementById('loading');
+    <!-- ========================================== -->
+    <!-- SECTION 1: 퀴즈 성적 대시보드 (Quiz Admin) -->
+    <!-- ========================================== -->
+    <section id="section-quiz" class="space-y-5 fade-in">
       
-      loading.style.display = 'block';
-      container.innerHTML = '';
+      <!-- 상단 컨트롤 바 -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="flex items-center space-x-2">
+          <span class="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">활동 1</span>
+          <h2 class="font-bold text-slate-800 text-sm">지역화 전략 Quiz</h2>
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button onclick="fetchQuizData()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-lg transition-all shadow-sm flex items-center gap-2">
+            <i class="fa-solid fa-arrows-rotate" id="quizRefreshIcon"></i>
+            <span>퀴즈 새로고침</span>
+          </button>
+          <button onclick="exportQuizCSV()" class="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 font-medium text-xs rounded-lg border border-slate-200 transition-all shadow-sm flex items-center gap-2">
+            <i class="fa-solid fa-file-excel text-emerald-600"></i>
+            <span>엑셀 다운로드</span>
+          </button>
+        </div>
+      </div>
 
-      try {
-        const response = await fetch(GAS_URL);
-        globalData = await response.json();
-        loading.style.display = 'none';
-        renderTable(currentTab);
-      } catch (error) {
-        loading.innerText = '❌ 데이터를 불러오는 데 실패했습니다. 앱스크립트 배포 권한(모든 사용자) 및 시트 ID를 확인해 주세요.';
-        console.error(error);
+      <!-- 반 선택 탭 Bar -->
+      <div class="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-sm flex items-center space-x-1.5 overflow-x-auto" id="quizClassTabContainer">
+        <!-- 동적 생성 (전체, 1반~13반) -->
+      </div>
+
+      <!-- 퀴즈 요약 통계 Card (반별 동적 연동) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <span id="statQuizTotalLabel" class="text-xs font-semibold text-slate-400 block mb-1">총 제출 학생</span>
+            <span id="statQuizTotal" class="text-2xl font-bold text-slate-900">0명</span>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-base shrink-0">
+            <i class="fa-solid fa-users"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <span id="statQuizAvgLabel" class="text-xs font-semibold text-slate-400 block mb-1">전체 평균 점수</span>
+            <span id="statQuizAvg" class="text-2xl font-bold text-slate-900">0점</span>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-base shrink-0">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div class="space-y-0.5">
+            <span id="statQuizMaxLabel" class="text-xs font-semibold text-slate-400 block">최고 점수 & 학생</span>
+            <div class="flex items-baseline space-x-2">
+              <span id="statQuizMax" class="text-2xl font-bold text-slate-900">0점</span>
+            </div>
+            <p id="statQuizMaxScorers" class="text-xs font-medium text-slate-500 truncate max-w-[180px]">최고점자: -</p>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-base shrink-0">
+            <i class="fa-solid fa-trophy"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 퀴즈 학생 성적 테이블 -->
+      <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex items-center space-x-3 w-full sm:w-auto">
+            <h3 class="font-bold text-slate-900 text-sm" id="quizTableHeaderTitle">전체 제출 목록</h3>
+            <button id="resetQuizClassBtn" onclick="resetCurrentQuizClassData()" class="hidden px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs rounded-md border border-rose-200/60 transition-all flex items-center space-x-1">
+              <i class="fa-solid fa-trash-can text-[11px]"></i>
+              <span id="resetQuizBtnLabel">기록 초기화</span>
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <div class="flex items-center gap-1.5 shrink-0">
+              <label for="quizFilterSort" class="text-xs font-medium text-slate-500"><i class="fa-solid fa-arrow-down-wide-short"></i> 정렬:</label>
+              <select id="quizFilterSort" onchange="filterAndRenderQuizTable()" class="h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-slate-400 cursor-pointer">
+                <option value="number">번호순</option>
+                <option value="score">점수 높은순</option>
+              </select>
+            </div>
+            <input type="text" id="quizSearchInput" oninput="filterAndRenderQuizTable()" placeholder="소속 또는 이름 검색..." class="h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-slate-400 w-full sm:w-48">
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/80 text-slate-500 text-[11px] uppercase font-semibold border-b border-slate-100">
+                <th class="p-3.5 pl-5 whitespace-nowrap">소속 (반/번호)</th>
+                <th class="p-3.5 whitespace-nowrap">이름</th>
+                <th class="p-3.5 whitespace-nowrap">최종 점수</th>
+                <th class="p-3.5 whitespace-nowrap">제출 일시</th>
+                <th class="p-3.5 text-center whitespace-nowrap">상세 답안 분석</th>
+              </tr>
+            </thead>
+            <tbody id="quizTableBody" class="divide-y divide-slate-100 text-xs font-medium">
+              <tr>
+                <td colspan="5" class="p-8 text-center text-slate-400 text-xs">
+                  데이터를 불러오는 중입니다...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SECTION 2: 마스코트 관리 (Mascot Admin)    -->
+    <!-- ========================================== -->
+    <section id="section-mascot" class="space-y-5 hidden fade-in">
+      
+      <!-- 상단 컨트롤 바 -->
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
+        <div class="flex items-center space-x-2">
+          <span class="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">활동 2</span>
+          <h2 class="font-bold text-slate-800 text-sm">우리 지역 마스코트 만들기</h2>
+        </div>
+        <button onclick="fetchMascotData()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-lg transition-all shadow-sm flex items-center gap-2">
+          <i class="fa-solid fa-arrows-rotate" id="mascotRefreshIcon"></i>
+          <span>마스코트 새로고침</span>
+        </button>
+      </div>
+
+      <!-- 마스코트 반 선택 탭 Bar -->
+      <div class="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-sm flex items-center space-x-1.5 overflow-x-auto" id="mascotClassTabContainer">
+        <!-- 동적 생성 (전체, 1반~13반) -->
+      </div>
+
+      <!-- 마스코트 요약 통계 Card (반별 동적 연동) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <span id="statMascotCountLabel" class="text-xs font-semibold text-slate-400 block mb-1">총 제출된 마스코트</span>
+            <span id="statMascotCount" class="text-2xl font-bold text-slate-900">0건</span>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-base shrink-0">
+            <i class="fa-solid fa-palette"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <span id="statMascotVotesLabel" class="text-xs font-semibold text-slate-400 block mb-1">누적 총 투표 수</span>
+            <span id="statMascotVotes" class="text-2xl font-bold text-slate-900">0표</span>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-base shrink-0">
+            <i class="fa-solid fa-thumbs-up"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+          <div>
+            <span id="statMascotClassLabel" class="text-xs font-semibold text-slate-400 block mb-1">참여 학급 수</span>
+            <span id="statMascotClassCount" class="text-2xl font-bold text-slate-900">0개 반</span>
+          </div>
+          <div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-base shrink-0">
+            <i class="fa-solid fa-school"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 마스코트 필터 Bar -->
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <label for="mascotFilterSort" class="text-xs font-semibold text-slate-600"><i class="fa-solid fa-arrow-down-wide-short"></i> 정렬 기준:</label>
+          <select id="mascotFilterSort" onchange="renderMascotGrid()" class="h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-slate-400 cursor-pointer">
+            <option value="number">번호순</option>
+            <option value="votes">득표 많은순</option>
+          </select>
+        </div>
+        
+        <span class="text-xs text-slate-400 font-normal">부적절한 게시물은 [삭제] 버튼으로 즉시 관리할 수 있습니다.</span>
+      </div>
+
+      <!-- 마스코트 그리드 -->
+      <div id="mascotBoardGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div class="col-span-full text-center py-12 text-slate-400 text-xs font-medium">
+          데이터를 불러오는 중입니다...
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 1: 퀴즈 문항별 상세 답안 보기 팝업     -->
+  <!-- ========================================== -->
+  <div id="modalQuizDetail" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-lg w-full p-5 shadow-xl space-y-3.5 fade-in relative max-h-[90vh] flex flex-col border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <span id="modalQuizStudentClass" class="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">1반 5번</span>
+          <h3 id="modalQuizStudentName" class="text-base font-bold text-slate-900 mt-1">학생 상세 답안</h3>
+        </div>
+        <button onclick="closeQuizModal()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition-all">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div id="modalQuizDetailContent" class="space-y-2.5 overflow-y-auto pr-1 flex-1 py-0.5">
+        <!-- 동적 생성 -->
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex justify-end">
+        <button onclick="closeQuizModal()" class="px-4 py-2 bg-slate-900 text-white font-medium text-xs rounded-lg hover:bg-slate-800 transition-all">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- MODAL 2: 마스코트 이미지 크게보기 팝업        -->
+  <!-- ========================================== -->
+  <div id="modalMascotDetail" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl max-w-xl w-full p-5 shadow-xl space-y-3.5 fade-in relative max-h-[90vh] flex flex-col border border-slate-200">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 id="modalMascotTitle" class="text-sm font-bold text-slate-900">마스코트 크게보기</h3>
+        <button onclick="closeMascotModal()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center text-xs transition-all">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="overflow-y-auto space-y-3 flex-1">
+        <div class="bg-slate-50 border border-slate-100 rounded-lg p-2 flex items-center justify-center min-h-[220px]">
+          <img id="modalMascotImg" src="" alt="마스코트 크게보기" class="max-h-[360px] w-auto object-contain rounded">
+        </div>
+        <p id="modalMascotDesc" class="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3.5 rounded-lg border border-slate-100 whitespace-pre-line"></p>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex justify-end">
+        <button onclick="closeMascotModal()" class="px-4 py-2 bg-slate-900 text-white font-medium text-xs rounded-lg hover:bg-slate-800 transition-all">
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- JAVASCRIPT LOGIC                           -->
+  <!-- ========================================== -->
+  <script>
+    const QUIZ_GAS_URL = "https://script.google.com/macros/s/AKfycbwYADtUhL9w1tz8mFqWjfdouv8tuEkYx6Dv5KxSyc03H2OCNK3JTkY-FTlnAr5VXon5/exec";
+    const MASCOT_GAS_URL = "https://script.google.com/macros/s/AKfycbww2rAQook33qarQ44ycraWV3ZGRChN7oVh1EnrElTeZJYNrTr5FcQjJjQ8u4RU7piC/exec";
+
+    let globalQuizData = [];
+    let globalMascotData = [];
+    let activeQuizClass = 'all';
+    let activeMascotClass = 'all';
+    let currentRenderedQuizList = [];
+
+    function switchMainTab(tab) {
+      const btnQuiz = document.getElementById('mainTabQuiz');
+      const btnMascot = document.getElementById('mainTabMascot');
+      const secQuiz = document.getElementById('section-quiz');
+      const secMascot = document.getElementById('section-mascot');
+
+      if (tab === 'quiz') {
+        btnQuiz.className = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm flex items-center justify-center gap-2";
+        btnMascot.className = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-medium transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2";
+        secQuiz.classList.remove('hidden');
+        secMascot.classList.add('hidden');
+      } else {
+        btnMascot.className = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm flex items-center justify-center gap-2";
+        btnQuiz.className = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-medium transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2";
+        secMascot.classList.remove('hidden');
+        secQuiz.classList.add('hidden');
       }
     }
 
-    function switchTab(tabName) {
-      currentTab = tabName;
-      document.getElementById('btn-app1').classList.toggle('active', tabName === 'app1');
-      document.getElementById('btn-app2').classList.toggle('active', tabName === 'app2');
-      renderTable(tabName);
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => { toast.classList.add('hidden'); }, 2500);
     }
 
-    function renderTable(tabName) {
-      const data = globalData[tabName];
-      const container = document.getElementById('table-container');
+    function parseStudentId(idStr) {
+      if (!idStr) return { classNum: 0, studentNum: 0 };
+      const parts = idStr.toString().split(' ');
+      const c = parseInt((parts[0] || '').replace(/[^0-9]/g, '')) || 0;
+      const n = parseInt((parts[1] || '').replace(/[^0-9]/g, '')) || 0;
+      return { classNum: c, studentNum: n };
+    }
 
-      if (!data || data.length === 0) {
-        container.innerHTML = '<p style="text-align:center; padding:20px;">제출된 데이터가 없습니다.</p>';
+    /* ----------------------------------------------------
+       SECTION 1: 퀴즈 관리자 기능 (QUIZ ADMIN LOGIC)
+    ---------------------------------------------------- */
+    function renderQuizClassTabs() {
+      const tabContainer = document.getElementById('quizClassTabContainer');
+      tabContainer.innerHTML = '';
+
+      const tabs = ['all'];
+      for (let i = 1; i <= 13; i++) tabs.push(`${i}반`);
+
+      tabs.forEach(tab => {
+        const btn = document.createElement('button');
+        const isActive = activeQuizClass === tab;
+        const labelText = tab === 'all' ? '전체 보기' : tab;
+
+        btn.className = isActive
+          ? "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm shrink-0"
+          : "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 shrink-0";
+
+        btn.innerText = labelText;
+        btn.onclick = () => {
+          activeQuizClass = tab;
+          renderQuizClassTabs();
+          filterAndRenderQuizTable();
+        };
+
+        tabContainer.appendChild(btn);
+      });
+    }
+
+    async function fetchQuizData() {
+      const icon = document.getElementById('quizRefreshIcon');
+      if (icon) icon.classList.add('fa-spin');
+
+      try {
+        const res = await fetch(QUIZ_GAS_URL);
+        const data = await res.json();
+        globalQuizData = Array.isArray(data) ? data : [];
+        filterAndRenderQuizTable();
+        showToast("퀴즈 성적 데이터가 업데이트되었습니다.");
+      } catch (err) {
+        console.error("퀴즈 데이터 로드 실패:", err);
+        showToast("퀴즈 데이터를 불러오지 못했습니다.");
+      } finally {
+        if (icon) icon.classList.remove('fa-spin');
+      }
+    }
+
+    function filterAndRenderQuizTable() {
+      const tbody = document.getElementById('quizTableBody');
+      const searchVal = document.getElementById('quizSearchInput').value.trim().toLowerCase();
+      const sortVal = document.getElementById('quizFilterSort').value;
+      const resetBtn = document.getElementById('resetQuizClassBtn');
+      const resetBtnLabel = document.getElementById('resetQuizBtnLabel');
+      const tableTitle = document.getElementById('quizTableHeaderTitle');
+
+      tbody.innerHTML = '';
+
+      // 1. 반 필터링
+      let currentData = globalQuizData;
+      const isAllClass = activeQuizClass === 'all';
+
+      if (!isAllClass) {
+        const targetClassNum = parseInt(activeQuizClass.replace('반', ''));
+        currentData = globalQuizData.filter(r => {
+          if (!r.studentId) return false;
+          const parsed = parseStudentId(r.studentId);
+          if (parsed.classNum > 0) return parsed.classNum === targetClassNum;
+          return r.studentId.split(' ')[0] === activeQuizClass || r.studentId.startsWith(activeQuizClass);
+        });
+        resetBtn.classList.remove('hidden');
+        resetBtnLabel.innerText = `${activeQuizClass} 기록 초기화`;
+        tableTitle.innerText = `${activeQuizClass} 제출 목록`;
+      } else {
+        resetBtn.classList.add('hidden');
+        tableTitle.innerText = `전체 제출 목록`;
+      }
+
+      // 2. 검색어 필터링
+      let filtered = currentData.filter(r => 
+        (r.studentId && r.studentId.toString().toLowerCase().includes(searchVal)) || 
+        (r.studentName && r.studentName.toLowerCase().includes(searchVal))
+      );
+
+      // 3. 정렬 처리
+      if (sortVal === 'score') {
+        filtered.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
+      } else {
+        filtered.sort((a, b) => {
+          const pA = parseStudentId(a.studentId);
+          const pB = parseStudentId(b.studentId);
+          if (pA.classNum !== pB.classNum) return pA.classNum - pB.classNum;
+          return pA.studentNum - pB.studentNum;
+        });
+      }
+
+      // 4. 요약 통계 Card 반별 동적 계산 & 라벨 변경
+      document.getElementById('statQuizTotalLabel').innerText = isAllClass ? '총 제출 학생' : `${activeQuizClass} 제출 학생`;
+      document.getElementById('statQuizAvgLabel').innerText = isAllClass ? '전체 평균 점수' : `${activeQuizClass} 평균 점수`;
+      document.getElementById('statQuizMaxLabel').innerText = isAllClass ? '최고 점수 & 학생' : `${activeQuizClass} 최고 점수`;
+
+      document.getElementById('statQuizTotal').innerText = `${currentData.length}명`;
+      
+      if (currentData.length > 0) {
+        const total = currentData.reduce((acc, cur) => acc + Number(cur.score || 0), 0);
+        const avg = (total / currentData.length).toFixed(1);
+        const maxScore = Math.max(...currentData.map(r => Number(r.score || 0)));
+        
+        const topScorers = currentData.filter(r => Number(r.score || 0) === maxScore);
+        const topScorerNames = topScorers.map(r => {
+          const parts = (r.studentId || '').split(' ');
+          const numPart = parts[1] || parts[0] || '';
+          return `${numPart} ${r.studentName || ''}`.trim();
+        }).join(', ');
+
+        document.getElementById('statQuizAvg').innerText = `${avg}점`;
+        document.getElementById('statQuizMax').innerText = `${maxScore}점`;
+        document.getElementById('statQuizMaxScorers').innerText = `최고점자: ${topScorerNames}`;
+      } else {
+        document.getElementById('statQuizAvg').innerText = '0점';
+        document.getElementById('statQuizMax').innerText = '0점';
+        document.getElementById('statQuizMaxScorers').innerText = '최고점자: -';
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="p-8 text-center text-slate-400 text-xs">
+              제출된 학생 성적 기록이 없습니다.
+            </td>
+          </tr>
+        `;
         return;
       }
 
-      const headers = Object.keys(data[0]);
-      let html = '<table><thead><tr>';
-      headers.forEach(h => html += `<th>${h}</th>`);
-      html += '</tr></thead><tbody>';
+      currentRenderedQuizList = filtered;
 
-      data.forEach(row => {
-        html += '<tr>';
-        headers.forEach(h => {
-          let cellValue = row[h] !== undefined ? row[h] : '';
-          
-          // '이미지' 열에서 URL 형태일 경우 미니 이미지 및 클릭 링크로 렌더링
-          if (h === '이미지' && typeof cellValue === 'string' && cellValue.startsWith('http')) {
-            cellValue = `<a href="${cellValue}" target="_blank"><img src="${cellValue}" class="img-preview" alt="제출이미지" onerror="this.outerHTML='[이미지 링크]'"/></a>`;
-          }
-          
-          html += `<td>${cellValue}</td>`;
-        });
-        html += '</tr>';
+      currentRenderedQuizList.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50/80 transition-colors border-b border-slate-100/70";
+        
+        let details = r.details;
+        if (typeof details === 'string') {
+          try { details = JSON.parse(details); } catch(e) {}
+        }
+        const hasDetails = details && Array.isArray(details) && details.length > 0;
+
+        tr.innerHTML = `
+          <td class="p-3.5 pl-5 font-semibold text-slate-800 whitespace-nowrap">${r.studentId || '-'}</td>
+          <td class="p-3.5 font-semibold text-slate-900 whitespace-nowrap">${r.studentName || '-'}</td>
+          <td class="p-3.5 font-bold text-slate-900 whitespace-nowrap">${r.score || 0}점</td>
+          <td class="p-3.5 text-slate-400 text-[11px] whitespace-nowrap">${r.date || '-'}</td>
+          <td class="p-3.5 text-center whitespace-nowrap">
+            ${hasDetails ? `
+              <button onclick="openQuizDetailModalByIndex(${idx})" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] rounded border border-slate-200 transition-all">
+                🔍 상세 답안
+              </button>
+            ` : `<span class="text-[11px] text-slate-300">기록없음</span>`}
+          </td>
+        `;
+        tbody.appendChild(tr);
       });
-
-      html += '</tbody></table>';
-      container.innerHTML = html;
     }
 
-    // 페이지 진입 시 자동 실행
-    loadData();
+    async function resetCurrentQuizClassData() {
+      if (activeQuizClass === 'all') return;
+
+      if (confirm(`정말로 ${activeQuizClass}의 모든 성적 기록을 삭제하시겠습니까?`)) {
+        globalQuizData = globalQuizData.filter(r => r.studentId.split(' ')[0] !== activeQuizClass);
+        filterAndRenderQuizTable();
+
+        try {
+          await fetch(QUIZ_GAS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+              action: 'resetClass',
+              className: activeQuizClass
+            })
+          });
+          showToast(`${activeQuizClass}의 성적 데이터가 삭제되었습니다.`);
+        } catch (err) {
+          console.error(err);
+          showToast('구글 시트 삭제 처리 중 오류가 발생했습니다.');
+        }
+      }
+    }
+
+    function openQuizDetailModalByIndex(idx) {
+      const studentData = currentRenderedQuizList[idx];
+      if (!studentData) return;
+
+      document.getElementById('modalQuizStudentClass').innerText = studentData.studentId || '';
+      document.getElementById('modalQuizStudentName').innerText = `${studentData.studentName || ''} 학생 상세 결과 (${studentData.score || 0}점)`;
+
+      const container = document.getElementById('modalQuizDetailContent');
+      container.innerHTML = '';
+
+      let details = studentData.details;
+      if (typeof details === 'string') {
+        try { details = JSON.parse(details); } catch(e) { details = []; }
+      }
+
+      if (!details || !Array.isArray(details) || details.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">상세 답안 기록이 없습니다.</p>`;
+        document.getElementById('modalQuizDetail').classList.remove('hidden');
+        return;
+      }
+
+      details.forEach(item => {
+        const card = document.createElement('div');
+        const isCorrect = item.isCorrect;
+
+        card.className = isCorrect 
+          ? "p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5 text-xs"
+          : "p-3 rounded-lg bg-rose-50/40 border border-rose-200/60 space-y-1.5 text-xs";
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2 font-semibold">
+            <span class="text-slate-900 leading-snug">Q${item.num || ''}. ${item.question || ''}</span>
+            <span class="${isCorrect ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-rose-700 bg-rose-50 border border-rose-200'} px-2 py-0.5 rounded text-[11px] font-bold shrink-0">
+              ${isCorrect ? '⭕ 정답' : '❌ 오답'}
+            </span>
+          </div>
+          <div class="space-y-0.5 pt-1.5 border-t border-slate-200/60 text-[11px]">
+            <div><span class="text-slate-500">학생 선택:</span> <strong class="${isCorrect ? 'text-slate-900' : 'text-rose-700'}">${item.userOpt || ''}</strong></div>
+            ${!isCorrect ? `<div><span class="text-slate-500">정답:</span> <strong class="text-emerald-700">${item.correctAns || ''}</strong></div>` : ''}
+            ${item.explanation ? `<div class="bg-white p-2 rounded text-slate-600 mt-1 border border-slate-100 leading-relaxed">💡 ${item.explanation}</div>` : ''}
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+
+      document.getElementById('modalQuizDetail').classList.remove('hidden');
+    }
+
+    function closeQuizModal() {
+      document.getElementById('modalQuizDetail').classList.add('hidden');
+    }
+
+    function exportQuizCSV() {
+      if (globalQuizData.length === 0) return alert('다운로드할 데이터가 없습니다.');
+
+      let currentData = globalQuizData;
+      if (activeQuizClass !== 'all') {
+        currentData = globalQuizData.filter(r => r.studentId.split(' ')[0] === activeQuizClass);
+      }
+
+      let csvContent = "\uFEFF소속,이름,최종점수,제출일시\n";
+      currentData.forEach(r => {
+        csvContent += `"${r.studentId}","${r.studentName}",${r.score},"${r.date}"\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `지역화전략_퀴즈성적_${activeQuizClass}_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    /* ----------------------------------------------------
+       SECTION 2: 마스코트 관리자 기능 (MASCOT ADMIN LOGIC)
+    ---------------------------------------------------- */
+    function renderMascotClassTabs() {
+      const tabContainer = document.getElementById('mascotClassTabContainer');
+      if (!tabContainer) return;
+      tabContainer.innerHTML = '';
+
+      const tabs = ['all'];
+      for (let i = 1; i <= 13; i++) tabs.push(`${i}반`);
+
+      tabs.forEach(tab => {
+        const btn = document.createElement('button');
+        const isActive = activeMascotClass === tab;
+        const labelText = tab === 'all' ? '전체 보기' : tab;
+
+        btn.className = isActive
+          ? "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm shrink-0"
+          : "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 shrink-0";
+
+        btn.innerText = labelText;
+        btn.onclick = () => {
+          activeMascotClass = tab;
+          renderMascotClassTabs();
+          renderMascotGrid();
+        };
+
+        tabContainer.appendChild(btn);
+      });
+    }
+
+    async function fetchMascotData() {
+      const icon = document.getElementById('mascotRefreshIcon');
+      if (icon) icon.classList.add('fa-spin');
+
+      try {
+        const response = await fetch(MASCOT_GAS_URL + "?action=read");
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          globalMascotData = data;
+          renderMascotGrid();
+          showToast("마스코트 제출 데이터 업데이트 완료!");
+        }
+      } catch (err) {
+        console.error("마스코트 데이터 로드 실패:", err);
+        showToast("마스코트 데이터를 불러오지 못했습니다.");
+      } finally {
+        if (icon) icon.classList.remove('fa-spin');
+      }
+    }
+
+    function updateMascotStats(filteredList) {
+      const isAll = activeMascotClass === 'all';
+      document.getElementById('statMascotCountLabel').textContent = isAll ? '총 제출된 마스코트' : `${activeMascotClass} 제출 마스코트`;
+      document.getElementById('statMascotVotesLabel').textContent = isAll ? '누적 총 투표 수' : `${activeMascotClass} 누적 투표 수`;
+      document.getElementById('statMascotClassLabel').textContent = isAll ? '참여 학급 수' : `${activeMascotClass} 참여 인원`;
+
+      document.getElementById('statMascotCount').textContent = `${filteredList.length}건`;
+      const totalVotes = filteredList.reduce((acc, cur) => acc + (Number(cur.votes) || 0), 0);
+      document.getElementById('statMascotVotes').textContent = `${totalVotes}표`;
+
+      if (isAll) {
+        const uniqueClasses = new Set(filteredList.map(item => item.classNum)).size;
+        document.getElementById('statMascotClassCount').textContent = `${uniqueClasses}개 반`;
+      } else {
+        document.getElementById('statMascotClassCount').textContent = `${filteredList.length}명`;
+      }
+    }
+
+    function renderMascotGrid() {
+      const grid = document.getElementById('mascotBoardGrid');
+      const sortFilter = document.getElementById('mascotFilterSort').value;
+
+      let list = [...globalMascotData];
+
+      if (activeMascotClass !== 'all') {
+        const targetClassNum = activeMascotClass.replace('반', '');
+        list = list.filter(item => String(item.classNum) === String(targetClassNum));
+      }
+
+      updateMascotStats(list);
+
+      if (sortFilter === 'votes') {
+        list.sort((a, b) => (Number(b.votes) || 0) - (Number(a.votes) || 0));
+      } else {
+        list.sort((a, b) => {
+          const cA = Number(a.classNum) || 0;
+          const cB = Number(b.classNum) || 0;
+          if (cA !== cB) return cA - cB;
+          const nA = Number(a.studentNum) || 0;
+          const nB = Number(b.studentNum) || 0;
+          return nA - nB;
+        });
+      }
+
+      if (list.length === 0) {
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-xs font-medium">제출된 마스코트 데이터가 없습니다.</div>`;
+        return;
+      }
+
+      let html = '';
+      list.forEach(sub => {
+        html += `
+          <div class="bg-white border border-slate-200/80 rounded-xl p-3.5 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-100">
+                <span class="text-xs font-semibold text-slate-800"><i class="fa-solid fa-user text-slate-400 mr-1"></i> ${sub.author}</span>
+                <button onclick="deleteMascot('${sub.id}')" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/60 rounded text-[11px] font-medium transition-all">
+                  삭제
+                </button>
+              </div>
+
+              <div class="cursor-pointer group" onclick="openMascotModal('${sub.id}')">
+                <div class="aspect-[4/3] bg-slate-50 border border-slate-100 rounded-lg overflow-hidden mb-2.5 flex items-center justify-center">
+                  <img src="${sub.imageData}" alt="제출 마스코트" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200">
+                </div>
+                <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-2.5 font-normal">${sub.desc || '설명 없음'}</p>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span>투표: <strong class="text-slate-900 font-bold">${sub.votes || 0}</strong>표</span>
+              <button onclick="openMascotModal('${sub.id}')" class="text-slate-700 hover:text-slate-900 font-medium">크게보기 🔍</button>
+            </div>
+          </div>
+        `;
+      });
+
+      grid.innerHTML = html;
+    }
+
+    async function deleteMascot(id) {
+      if (confirm("정말로 이 마스코트를 구글 시트에서 삭제하시겠습니까?")) {
+        showToast("구글 시트에서 삭제하는 중...");
+        try {
+          await fetch(MASCOT_GAS_URL, {
+            method: "POST",
+            body: JSON.stringify({ action: "delete", id: id })
+          });
+          await fetchMascotData();
+          showToast("성공적으로 삭제되었습니다.");
+        } catch (err) {
+          console.error("삭제 실패:", err);
+          showToast("삭제 중 오류가 발생했습니다.");
+        }
+      }
+    }
+
+    function openMascotModal(id) {
+      const sub = globalMascotData.find(item => item.id === id);
+      if (!sub) return;
+
+      document.getElementById('modalMascotTitle').innerText = `${sub.author} 학생의 마스코트`;
+      document.getElementById('modalMascotImg').src = sub.imageData;
+      document.getElementById('modalMascotDesc').innerText = sub.desc + `\n\n👍 현재 받은 투표: ${sub.votes || 0}표`;
+      document.getElementById('modalMascotDetail').classList.remove('hidden');
+    }
+
+    function closeMascotModal() {
+      document.getElementById('modalMascotDetail').classList.add('hidden');
+    }
+
+    window.onload = function() {
+      renderQuizClassTabs();
+      renderMascotClassTabs();
+      fetchQuizData();
+    };
   </script>
 </body>
 </html>

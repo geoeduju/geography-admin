@@ -12,9 +12,36 @@
     * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; letter-spacing: -0.01em; }
     .fade-in { animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* 📌 드롭다운 화살표 아이콘 우측 여백 custom 스타일 */
+    .custom-select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px !important;
+    }
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-800 p-4 sm:p-6 lg:p-8">
+
+  <!-- 관리자 비밀번호 입력 -->
+  <div id="adminLoginOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+    <form onsubmit="handleAdminLogin(event)" class="bg-white rounded-xl max-w-sm w-full p-6 shadow-xl border border-slate-200 space-y-4">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0"><i class="fa-solid fa-lock"></i></div>
+        <div>
+          <h2 class="text-base font-bold text-slate-900">관리자 로그인</h2>
+          <p class="text-xs text-slate-500">Apps Script에 설정한 관리자 비밀번호를 입력하세요.</p>
+        </div>
+      </div>
+      <input type="password" id="adminKeyInput" required autocomplete="current-password" placeholder="관리자 비밀번호" class="w-full h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:border-slate-400">
+      <p id="adminLoginError" class="hidden text-xs font-semibold text-rose-600"></p>
+      <button type="submit" id="adminLoginBtn" class="w-full h-10 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-lg transition-all">확인</button>
+    </form>
+  </div>
 
   <!-- Toast Notification -->
   <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-xl text-xs font-medium z-50 hidden fade-in">
@@ -60,7 +87,7 @@
           <h2 class="font-bold text-slate-800 text-sm">지역화 전략 Quiz</h2>
         </div>
         <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <button onclick="fetchQuizData()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-lg transition-all shadow-sm flex items-center gap-2">
+          <button onclick="fetchQuizData(true)" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-lg transition-all shadow-sm flex items-center gap-2">
             <i class="fa-solid fa-arrows-rotate" id="quizRefreshIcon"></i>
             <span>퀴즈 새로고침</span>
           </button>
@@ -92,6 +119,7 @@
           <div>
             <span id="statQuizAvgLabel" class="text-xs font-semibold text-slate-400 block mb-1">전체 평균 점수</span>
             <span id="statQuizAvg" class="text-2xl font-bold text-slate-900">0점</span>
+            <p id="statQuizAvgCorrect" class="text-xs font-medium text-slate-500 mt-0.5">평균 정답: -</p>
           </div>
           <div class="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center text-base shrink-0">
             <i class="fa-solid fa-chart-line"></i>
@@ -126,9 +154,11 @@
           <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
             <div class="flex items-center gap-1.5 shrink-0">
               <label for="quizFilterSort" class="text-xs font-medium text-slate-500"><i class="fa-solid fa-arrow-down-wide-short"></i> 정렬:</label>
-              <select id="quizFilterSort" onchange="filterAndRenderQuizTable()" class="h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-slate-400 cursor-pointer">
+              <!-- 📌 custom-select 적용 -->
+              <select id="quizFilterSort" onchange="filterAndRenderQuizTable()" class="custom-select h-9 pl-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-slate-400 cursor-pointer">
                 <option value="number">번호순</option>
                 <option value="score">점수 높은순</option>
+                <option value="correct">정답 많은순</option>
               </select>
             </div>
             <input type="text" id="quizSearchInput" oninput="filterAndRenderQuizTable()" placeholder="소속 또는 이름 검색..." class="h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:border-slate-400 w-full sm:w-48">
@@ -141,14 +171,16 @@
               <tr class="bg-slate-50/80 text-slate-500 text-[11px] uppercase font-semibold border-b border-slate-100">
                 <th class="p-3.5 pl-5 whitespace-nowrap">소속 (반/번호)</th>
                 <th class="p-3.5 whitespace-nowrap">이름</th>
-                <th class="p-3.5 whitespace-nowrap">최종 점수</th>
+                <th class="p-3.5 whitespace-nowrap">제출 점수</th>
+                <th class="p-3.5 whitespace-nowrap">정답 수</th>
+                <th class="p-3.5 whitespace-nowrap">1차 / 2차</th>
                 <th class="p-3.5 whitespace-nowrap">제출 일시</th>
                 <th class="p-3.5 text-center whitespace-nowrap">상세 답안 분석</th>
               </tr>
             </thead>
             <tbody id="quizTableBody" class="divide-y divide-slate-100 text-xs font-medium">
               <tr>
-                <td colspan="5" class="p-8 text-center text-slate-400 text-xs">
+                <td colspan="7" class="p-8 text-center text-slate-400 text-xs">
                   데이터를 불러오는 중입니다...
                 </td>
               </tr>
@@ -169,7 +201,7 @@
           <span class="text-[11px] font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">활동 2</span>
           <h2 class="font-bold text-slate-800 text-sm">우리 지역 마스코트 만들기</h2>
         </div>
-        <button onclick="fetchMascotData()" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-lg transition-all shadow-sm flex items-center gap-2">
+        <button onclick="fetchMascotData(true)" class="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs rounded-lg transition-all shadow-sm flex items-center gap-2">
           <i class="fa-solid fa-arrows-rotate" id="mascotRefreshIcon"></i>
           <span>마스코트 새로고침</span>
         </button>
@@ -217,13 +249,14 @@
       <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <label for="mascotFilterSort" class="text-xs font-semibold text-slate-600"><i class="fa-solid fa-arrow-down-wide-short"></i> 정렬 기준:</label>
-          <select id="mascotFilterSort" onchange="renderMascotGrid()" class="h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-slate-400 cursor-pointer">
+          <!-- 📌 custom-select 적용 (화살표 오른쪽 여백 확보) -->
+          <select id="mascotFilterSort" onchange="renderMascotGrid()" class="custom-select h-9 pl-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold outline-none focus:border-slate-400 cursor-pointer">
             <option value="number">번호순</option>
             <option value="votes">득표 많은순</option>
           </select>
         </div>
         
-        <span class="text-xs text-slate-400 font-normal">작품 카드 하단 및 [크게보기] 팝업에서 **투표한 학생 명단**을 확인할 수 있습니다.</span>
+        <span class="text-xs text-slate-400 font-normal">작품 카드를 터치하거나 [크게보기] 버튼을 누르면 <strong>투표한 학생 명단</strong>을 확인할 수 있습니다.</span>
       </div>
 
       <!-- 마스코트 그리드 -->
@@ -261,7 +294,7 @@
     </div>
   </div>
 
-  <!-- MODAL 2: 마스코트 이미지 크게보기 팝업 (투표자 명단 연동) -->
+  <!-- MODAL 2: 마스코트 이미지 크게보기 팝업 (투표자 명단 표시) -->
   <div id="modalMascotDetail" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white rounded-xl max-w-xl w-full p-5 shadow-xl space-y-3.5 fade-in relative max-h-[90vh] flex flex-col border border-slate-200">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -295,96 +328,179 @@
   <script>
     const QUIZ_GAS_URL = "https://script.google.com/macros/s/AKfycbwYADtUhL9w1tz8mFqWjfdouv8tuEkYx6Dv5KxSyc03H2OCNK3JTkY-FTlnAr5VXon5/exec";
     const MASCOT_GAS_URL = "https://script.google.com/macros/s/AKfycbw_s7MmD4cmQzOBTEUZQ823ACGV9vkFzJTgBeTAAR35Y0u-POO84Q3BHWihLo1YE3Z4/exec";
+    const KEY_STORAGE = 'admin_key';
 
+    let adminKey = '';
     let globalQuizData = [];
     let globalMascotData = [];
     let activeQuizClass = 'all';
     let activeMascotClass = 'all';
     let currentRenderedQuizList = [];
+    let currentRenderedMascotList = [];
 
+    // 학생이 쓴 글을 화면에 넣을 때 HTML로 실행되지 않도록 바꿔준다
+    function esc(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    /* ----------------------------------------------------
+       관리자 인증
+    ---------------------------------------------------- */
+    class UnauthorizedError extends Error {}
+
+    // 관리자 요청은 모두 POST로 보내고, 비밀번호는 Apps Script가 확인한다
+    async function adminPost(url, body) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify({ ...body, key: adminKey })
+      });
+      const data = await res.json();
+      if (data.status === 'unauthorized') throw new UnauthorizedError();
+      if (data.status !== 'ok') throw new Error(data.message || '요청 실패');
+      return data;
+    }
+
+    function showAdminLogin(message) {
+      adminKey = '';
+      try { sessionStorage.removeItem(KEY_STORAGE); } catch (e) {}
+      const errorElem = document.getElementById('adminLoginError');
+      errorElem.textContent = message || '';
+      errorElem.classList.toggle('hidden', !message);
+      document.getElementById('adminLoginOverlay').classList.remove('hidden');
+      document.getElementById('adminKeyInput').focus();
+    }
+
+    function handleUnauthorized(err) {
+      if (err instanceof UnauthorizedError) {
+        showAdminLogin('비밀번호가 맞지 않습니다. (Apps Script의 ADMIN_KEY 설정도 확인하세요)');
+        return true;
+      }
+      return false;
+    }
+
+    async function handleAdminLogin(event) {
+      event.preventDefault();
+      const btn = document.getElementById('adminLoginBtn');
+      adminKey = document.getElementById('adminKeyInput').value.trim();
+      btn.disabled = true;
+      btn.textContent = '확인 중...';
+      try {
+        await adminPost(QUIZ_GAS_URL, { action: 'adminList' });
+        try { sessionStorage.setItem(KEY_STORAGE, adminKey); } catch (e) {}
+        document.getElementById('adminLoginOverlay').classList.add('hidden');
+        document.getElementById('adminKeyInput').value = '';
+        fetchQuizData();
+        fetchMascotData();
+      } catch (err) {
+        if (!handleUnauthorized(err)) showAdminLogin('서버에 연결하지 못했습니다. 잠시 후 다시 시도하세요.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '확인';
+      }
+    }
+
+    /* ----------------------------------------------------
+       공통
+    ---------------------------------------------------- */
     function switchMainTab(tab) {
       const btnQuiz = document.getElementById('mainTabQuiz');
       const btnMascot = document.getElementById('mainTabMascot');
       const secQuiz = document.getElementById('section-quiz');
       const secMascot = document.getElementById('section-mascot');
+      const activeClass = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm flex items-center justify-center gap-2";
+      const inactiveClass = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-medium transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2";
 
-      if (tab === 'quiz') {
-        btnQuiz.className = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm flex items-center justify-center gap-2";
-        btnMascot.className = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-medium transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2";
-        secQuiz.classList.remove('hidden');
-        secMascot.classList.add('hidden');
-      } else {
-        btnMascot.className = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm flex items-center justify-center gap-2";
-        btnQuiz.className = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-medium transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2";
-        secMascot.classList.remove('hidden');
-        secQuiz.classList.add('hidden');
-        
-        // 📌 마스코트 탭 클릭 시 최신 데이터 자동 조회
-        fetchMascotData();
-      }
+      btnQuiz.className = tab === 'quiz' ? activeClass : inactiveClass;
+      btnMascot.className = tab === 'quiz' ? inactiveClass : activeClass;
+      secQuiz.classList.toggle('hidden', tab !== 'quiz');
+      secMascot.classList.toggle('hidden', tab === 'quiz');
+      if (tab === 'mascot') fetchMascotData();
     }
 
+    let toastTimer = null;
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.classList.remove('hidden');
-      setTimeout(() => { toast.classList.add('hidden'); }, 2500);
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.classList.add('hidden'); }, 2500);
     }
 
     function parseStudentId(idStr) {
-      if (!idStr) return { classNum: 0, studentNum: 0 };
-      const parts = idStr.toString().split(' ');
+      const parts = String(idStr || '').split(' ');
       const c = parseInt((parts[0] || '').replace(/[^0-9]/g, '')) || 0;
       const n = parseInt((parts[1] || '').replace(/[^0-9]/g, '')) || 0;
       return { classNum: c, studentNum: n };
+    }
+
+    function renderClassTabs(containerId, activeTab, onSelect) {
+      const tabContainer = document.getElementById(containerId);
+      tabContainer.innerHTML = '';
+      const tabs = ['all'];
+      for (let i = 1; i <= 13; i++) tabs.push(`${i}반`);
+
+      tabs.forEach(tab => {
+        const btn = document.createElement('button');
+        btn.className = activeTab === tab
+          ? "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm shrink-0"
+          : "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 shrink-0";
+        btn.innerText = tab === 'all' ? '전체 보기' : tab;
+        btn.onclick = () => onSelect(tab);
+        tabContainer.appendChild(btn);
+      });
     }
 
     /* ----------------------------------------------------
        SECTION 1: 퀴즈 관리자 기능
     ---------------------------------------------------- */
     function renderQuizClassTabs() {
-      const tabContainer = document.getElementById('quizClassTabContainer');
-      tabContainer.innerHTML = '';
-
-      const tabs = ['all'];
-      for (let i = 1; i <= 13; i++) tabs.push(`${i}반`);
-
-      tabs.forEach(tab => {
-        const btn = document.createElement('button');
-        const isActive = activeQuizClass === tab;
-        const labelText = tab === 'all' ? '전체 보기' : tab;
-
-        btn.className = isActive
-          ? "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm shrink-0"
-          : "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 shrink-0";
-
-        btn.innerText = labelText;
-        btn.onclick = () => {
-          activeQuizClass = tab;
-          renderQuizClassTabs();
-          filterAndRenderQuizTable();
-        };
-
-        tabContainer.appendChild(btn);
+      renderClassTabs('quizClassTabContainer', activeQuizClass, tab => {
+        activeQuizClass = tab;
+        renderQuizClassTabs();
+        filterAndRenderQuizTable();
       });
     }
 
-    async function fetchQuizData() {
+    function normalizeQuizRow(r) {
+      let details = r.details;
+      if (typeof details === 'string') {
+        try { details = JSON.parse(details); } catch (e) { details = []; }
+      }
+      details = Array.isArray(details) ? details : [];
+      return {
+        ...r,
+        studentId: String(r.studentId || ''),
+        studentName: String(r.studentName || ''),
+        score: Number(r.score) || 0,
+        details: details,
+        correctCount: details.length ? details.filter(d => d.isCorrect).length : null
+      };
+    }
+
+    async function fetchQuizData(showResultToast = false) {
+      if (!adminKey) return;
       const icon = document.getElementById('quizRefreshIcon');
       if (icon) icon.classList.add('fa-spin');
 
       try {
-        const res = await fetch(QUIZ_GAS_URL + "?_t=" + Date.now());
-        const data = await res.json();
-        globalQuizData = Array.isArray(data) ? data : [];
+        const data = await adminPost(QUIZ_GAS_URL, { action: 'adminList' });
+        globalQuizData = (data.data || []).map(normalizeQuizRow);
         filterAndRenderQuizTable();
-        showToast("퀴즈 성적 데이터가 업데이트되었습니다.");
+        if (showResultToast) showToast("퀴즈 성적 데이터가 업데이트되었습니다.");
       } catch (err) {
         console.error("퀴즈 데이터 로드 실패:", err);
-        showToast("퀴즈 데이터를 불러오지 못했습니다.");
+        if (!handleUnauthorized(err)) showToast("퀴즈 데이터를 불러오지 못했습니다.");
       } finally {
         if (icon) icon.classList.remove('fa-spin');
       }
+    }
+
+    function getQuizClassData() {
+      if (activeQuizClass === 'all') return globalQuizData;
+      const targetClassNum = parseInt(activeQuizClass);
+      return globalQuizData.filter(r => parseStudentId(r.studentId).classNum === targetClassNum);
     }
 
     function filterAndRenderQuizTable() {
@@ -392,182 +508,145 @@
       const searchVal = document.getElementById('quizSearchInput').value.trim().toLowerCase();
       const sortVal = document.getElementById('quizFilterSort').value;
       const resetBtn = document.getElementById('resetQuizClassBtn');
-      const resetBtnLabel = document.getElementById('resetQuizBtnLabel');
-      const tableTitle = document.getElementById('quizTableHeaderTitle');
-
-      tbody.innerHTML = '';
-
-      let currentData = globalQuizData;
       const isAllClass = activeQuizClass === 'all';
+      const currentData = getQuizClassData();
 
-      if (!isAllClass) {
-        const targetClassNum = parseInt(activeQuizClass.replace('반', ''));
-        currentData = globalQuizData.filter(r => {
-          if (!r.studentId) return false;
-          const parsed = parseStudentId(r.studentId);
-          if (parsed.classNum > 0) return parsed.classNum === targetClassNum;
-          return r.studentId.split(' ')[0] === activeQuizClass || r.studentId.startsWith(activeQuizClass);
-        });
-        resetBtn.classList.remove('hidden');
-        resetBtnLabel.innerText = `${activeQuizClass} 기록 초기화`;
-        tableTitle.innerText = `${activeQuizClass} 제출 목록`;
-      } else {
-        resetBtn.classList.add('hidden');
-        tableTitle.innerText = `전체 제출 목록`;
-      }
+      resetBtn.classList.toggle('hidden', isAllClass);
+      if (!isAllClass) document.getElementById('resetQuizBtnLabel').innerText = `${activeQuizClass} 기록 초기화`;
+      document.getElementById('quizTableHeaderTitle').innerText = isAllClass ? '전체 제출 목록' : `${activeQuizClass} 제출 목록`;
 
-      let filtered = currentData.filter(r => 
-        (r.studentId && r.studentId.toString().toLowerCase().includes(searchVal)) || 
-        (r.studentName && r.studentName.toLowerCase().includes(searchVal))
+      const filtered = currentData.filter(r =>
+        r.studentId.toLowerCase().includes(searchVal) || r.studentName.toLowerCase().includes(searchVal)
       );
 
       if (sortVal === 'score') {
-        filtered.sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0));
+        filtered.sort((a, b) => b.score - a.score);
+      } else if (sortVal === 'correct') {
+        filtered.sort((a, b) => (b.correctCount ?? -1) - (a.correctCount ?? -1) || b.score - a.score);
       } else {
         filtered.sort((a, b) => {
           const pA = parseStudentId(a.studentId);
           const pB = parseStudentId(b.studentId);
-          if (pA.classNum !== pB.classNum) return pA.classNum - pB.classNum;
-          return pA.studentNum - pB.studentNum;
+          return (pA.classNum - pB.classNum) || (pA.studentNum - pB.studentNum);
         });
       }
 
+      // 요약 통계
       document.getElementById('statQuizTotalLabel').innerText = isAllClass ? '총 제출 학생' : `${activeQuizClass} 제출 학생`;
       document.getElementById('statQuizAvgLabel').innerText = isAllClass ? '전체 평균 점수' : `${activeQuizClass} 평균 점수`;
       document.getElementById('statQuizMaxLabel').innerText = isAllClass ? '최고 점수 & 학생' : `${activeQuizClass} 최고 점수`;
-
       document.getElementById('statQuizTotal').innerText = `${currentData.length}명`;
-      
+
       if (currentData.length > 0) {
-        const total = currentData.reduce((acc, cur) => acc + Number(cur.score || 0), 0);
-        const avg = (total / currentData.length).toFixed(1);
-        const maxScore = Math.max(...currentData.map(r => Number(r.score || 0)));
-        
-        const topScorers = currentData.filter(r => Number(r.score || 0) === maxScore);
-        const topScorerNames = topScorers.map(r => {
-          const parts = (r.studentId || '').split(' ');
-          const numPart = parts[1] || parts[0] || '';
-          return `${numPart} ${r.studentName || ''}`.trim();
+        const avg = (currentData.reduce((acc, cur) => acc + cur.score, 0) / currentData.length).toFixed(1);
+        const withCorrect = currentData.filter(r => r.correctCount !== null);
+        const avgCorrect = withCorrect.length
+          ? (withCorrect.reduce((acc, cur) => acc + cur.correctCount, 0) / withCorrect.length).toFixed(1)
+          : '-';
+        const maxScore = Math.max(...currentData.map(r => r.score));
+        const topScorerNames = currentData.filter(r => r.score === maxScore).map(r => {
+          const parts = r.studentId.split(' ');
+          const label = isAllClass ? r.studentId : (parts[1] || parts[0] || '');
+          return `${label} ${r.studentName}`.trim();
         }).join(', ');
 
         document.getElementById('statQuizAvg').innerText = `${avg}점`;
+        document.getElementById('statQuizAvgCorrect').innerText = `평균 정답: ${avgCorrect} / 5`;
         document.getElementById('statQuizMax').innerText = `${maxScore}점`;
         document.getElementById('statQuizMaxScorers').innerText = `최고점자: ${topScorerNames}`;
+        document.getElementById('statQuizMaxScorers').title = topScorerNames;
       } else {
         document.getElementById('statQuizAvg').innerText = '0점';
+        document.getElementById('statQuizAvgCorrect').innerText = '평균 정답: -';
         document.getElementById('statQuizMax').innerText = '0점';
         document.getElementById('statQuizMaxScorers').innerText = '최고점자: -';
       }
 
+      currentRenderedQuizList = filtered;
+
       if (filtered.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="5" class="p-8 text-center text-slate-400 text-xs">
-              제출된 학생 성적 기록이 없습니다.
-            </td>
-          </tr>
-        `;
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-slate-400 text-xs">제출된 학생 성적 기록이 없습니다.</td></tr>`;
         return;
       }
 
-      currentRenderedQuizList = filtered;
-
-      currentRenderedQuizList.forEach((r, idx) => {
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-slate-50/80 transition-colors border-b border-slate-100/70";
-        
-        let details = r.details;
-        if (typeof details === 'string') {
-          try { details = JSON.parse(details); } catch(e) {}
+      tbody.innerHTML = filtered.map((r, idx) => {
+        const hasDetails = r.details.length > 0;
+        let attemptsText = '-';
+        if (r.attempt1 !== null && r.attempt1 !== undefined) {
+          const a1 = `<span class="${r.chosen == 1 ? 'font-bold text-slate-900' : 'text-slate-400'}">${esc(r.attempt1)}</span>`;
+          const a2 = (r.attempt2 !== null && r.attempt2 !== undefined && r.attempt2 !== '')
+            ? `<span class="${r.chosen == 2 ? 'font-bold text-slate-900' : 'text-slate-400'}">${esc(r.attempt2)}</span>`
+            : '<span class="text-slate-300">재도전 안 함</span>';
+          attemptsText = `${a1} / ${a2}`;
         }
-        const hasDetails = details && Array.isArray(details) && details.length > 0;
-
-        tr.innerHTML = `
-          <td class="p-3.5 pl-5 font-semibold text-slate-800 whitespace-nowrap">${r.studentId || '-'}</td>
-          <td class="p-3.5 font-semibold text-slate-900 whitespace-nowrap">${r.studentName || '-'}</td>
-          <td class="p-3.5 font-bold text-slate-900 whitespace-nowrap">${r.score || 0}점</td>
-          <td class="p-3.5 text-slate-400 text-[11px] whitespace-nowrap">${r.date || '-'}</td>
-          <td class="p-3.5 text-center whitespace-nowrap">
-            ${hasDetails ? `
-              <button onclick="openQuizDetailModalByIndex(${idx})" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] rounded border border-slate-200 transition-all">
-                🔍 상세 답안
-              </button>
-            ` : `<span class="text-[11px] text-slate-300">기록없음</span>`}
-          </td>
+        return `
+          <tr class="hover:bg-slate-50/80 transition-colors border-b border-slate-100/70">
+            <td class="p-3.5 pl-5 font-semibold text-slate-800 whitespace-nowrap">${esc(r.studentId) || '-'}</td>
+            <td class="p-3.5 font-semibold text-slate-900 whitespace-nowrap">${esc(r.studentName) || '-'}</td>
+            <td class="p-3.5 font-bold text-slate-900 whitespace-nowrap">${r.score}점</td>
+            <td class="p-3.5 text-slate-700 whitespace-nowrap">${r.correctCount === null ? '-' : `${r.correctCount} / 5`}</td>
+            <td class="p-3.5 text-[11px] whitespace-nowrap">${attemptsText}</td>
+            <td class="p-3.5 text-slate-400 text-[11px] whitespace-nowrap">${esc(r.date) || '-'}</td>
+            <td class="p-3.5 text-center whitespace-nowrap">
+              ${hasDetails ? `
+                <button onclick="openQuizDetailModalByIndex(${idx})" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] rounded border border-slate-200 transition-all">
+                  🔍 상세 답안
+                </button>
+              ` : `<span class="text-[11px] text-slate-300">기록없음</span>`}
+            </td>
+          </tr>
         `;
-        tbody.appendChild(tr);
-      });
+      }).join('');
     }
 
     async function resetCurrentQuizClassData() {
       if (activeQuizClass === 'all') return;
+      const className = activeQuizClass;
+      const count = getQuizClassData().length;
+      if (!confirm(`정말로 ${className}의 모든 성적 기록(${count}건)을 삭제하시겠습니까?\n삭제한 기록은 되돌릴 수 없습니다.`)) return;
 
-      if (confirm(`정말로 ${activeQuizClass}의 모든 성적 기록을 삭제하시겠습니까?`)) {
-        globalQuizData = globalQuizData.filter(r => r.studentId.split(' ')[0] !== activeQuizClass);
-        filterAndRenderQuizTable();
-
-        try {
-          await fetch(QUIZ_GAS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-              action: 'resetClass',
-              className: activeQuizClass
-            })
-          });
-          showToast(`${activeQuizClass}의 성적 데이터가 삭제되었습니다.`);
-        } catch (err) {
-          console.error(err);
-          showToast('구글 시트 삭제 처리 중 오류가 발생했습니다.');
-        }
+      showToast(`${className} 기록을 삭제하는 중...`);
+      try {
+        const data = await adminPost(QUIZ_GAS_URL, { action: 'resetClass', className });
+        showToast(`${className}의 성적 데이터 ${data.deleted}건이 삭제되었습니다.`);
+      } catch (err) {
+        console.error(err);
+        if (!handleUnauthorized(err)) showToast('구글 시트 삭제 처리 중 오류가 발생했습니다.');
       }
+      await fetchQuizData();
     }
 
     function openQuizDetailModalByIndex(idx) {
       const studentData = currentRenderedQuizList[idx];
       if (!studentData) return;
 
-      document.getElementById('modalQuizStudentClass').innerText = studentData.studentId || '';
-      document.getElementById('modalQuizStudentName').innerText = `${studentData.studentName || ''} 학생 상세 결과 (${studentData.score || 0}점)`;
+      document.getElementById('modalQuizStudentClass').innerText = studentData.studentId;
+      const correctText = studentData.correctCount === null ? '' : `, 정답 ${studentData.correctCount}/5`;
+      document.getElementById('modalQuizStudentName').innerText = `${studentData.studentName} 학생 상세 결과 (${studentData.score}점${correctText})`;
 
       const container = document.getElementById('modalQuizDetailContent');
-      container.innerHTML = '';
-
-      let details = studentData.details;
-      if (typeof details === 'string') {
-        try { details = JSON.parse(details); } catch(e) { details = []; }
-      }
-
-      if (!details || !Array.isArray(details) || details.length === 0) {
+      if (studentData.details.length === 0) {
         container.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">상세 답안 기록이 없습니다.</p>`;
-        document.getElementById('modalQuizDetail').classList.remove('hidden');
-        return;
+      } else {
+        container.innerHTML = studentData.details.map(item => {
+          const isCorrect = !!item.isCorrect;
+          return `
+            <div class="${isCorrect ? 'p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5 text-xs' : 'p-3 rounded-lg bg-rose-50/40 border border-rose-200/60 space-y-1.5 text-xs'}">
+              <div class="flex items-start justify-between gap-2 font-semibold">
+                <span class="text-slate-900 leading-snug">Q${esc(item.num)}. ${esc(item.question)}</span>
+                <span class="${isCorrect ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-rose-700 bg-rose-50 border border-rose-200'} px-2 py-0.5 rounded text-[11px] font-bold shrink-0">
+                  ${isCorrect ? '⭕ 정답' : '❌ 오답'}
+                </span>
+              </div>
+              <div class="space-y-0.5 pt-1.5 border-t border-slate-200/60 text-[11px]">
+                <div><span class="text-slate-500">학생 선택:</span> <strong class="${isCorrect ? 'text-slate-900' : 'text-rose-700'}">${esc(item.userOpt)}</strong></div>
+                ${!isCorrect ? `<div><span class="text-slate-500">정답:</span> <strong class="text-emerald-700">${esc(item.correctAns)}</strong></div>` : ''}
+                ${item.explanation ? `<div class="bg-white p-2 rounded text-slate-600 mt-1 border border-slate-100 leading-relaxed">💡 ${esc(item.explanation)}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
       }
-
-      details.forEach(item => {
-        const card = document.createElement('div');
-        const isCorrect = item.isCorrect;
-
-        card.className = isCorrect 
-          ? "p-3 rounded-lg bg-slate-50 border border-slate-200 space-y-1.5 text-xs"
-          : "p-3 rounded-lg bg-rose-50/40 border border-rose-200/60 space-y-1.5 text-xs";
-
-        card.innerHTML = `
-          <div class="flex items-start justify-between gap-2 font-semibold">
-            <span class="text-slate-900 leading-snug">Q${item.num || ''}. ${item.question || ''}</span>
-            <span class="${isCorrect ? 'text-emerald-700 bg-emerald-50 border border-emerald-200' : 'text-rose-700 bg-rose-50 border border-rose-200'} px-2 py-0.5 rounded text-[11px] font-bold shrink-0">
-              ${isCorrect ? '⭕ 정답' : '❌ 오답'}
-            </span>
-          </div>
-          <div class="space-y-0.5 pt-1.5 border-t border-slate-200/60 text-[11px]">
-            <div><span class="text-slate-500">학생 선택:</span> <strong class="${isCorrect ? 'text-slate-900' : 'text-rose-700'}">${item.userOpt || ''}</strong></div>
-            ${!isCorrect ? `<div><span class="text-slate-500">정답:</span> <strong class="text-emerald-700">${item.correctAns || ''}</strong></div>` : ''}
-            ${item.explanation ? `<div class="bg-white p-2 rounded text-slate-600 mt-1 border border-slate-100 leading-relaxed">💡 ${item.explanation}</div>` : ''}
-          </div>
-        `;
-
-        container.appendChild(card);
-      });
 
       document.getElementById('modalQuizDetail').classList.remove('hidden');
     }
@@ -576,76 +655,60 @@
       document.getElementById('modalQuizDetail').classList.add('hidden');
     }
 
+    function csvCell(value) {
+      return `"${String(value ?? '').replace(/"/g, '""')}"`;
+    }
+
     function exportQuizCSV() {
-      if (globalQuizData.length === 0) return alert('다운로드할 데이터가 없습니다.');
-
-      let currentData = globalQuizData;
-      if (activeQuizClass !== 'all') {
-        currentData = globalQuizData.filter(r => r.studentId.split(' ')[0] === activeQuizClass);
-      }
-
-      let csvContent = "\uFEFF소속,이름,최종점수,제출일시\n";
-      currentData.forEach(r => {
-        csvContent += `"${r.studentId}","${r.studentName}",${r.score},"${r.date}"\n`;
+      const rows = [...getQuizClassData()].sort((a, b) => {
+        const pA = parseStudentId(a.studentId);
+        const pB = parseStudentId(b.studentId);
+        return (pA.classNum - pB.classNum) || (pA.studentNum - pB.studentNum);
       });
+      if (rows.length === 0) return alert('다운로드할 데이터가 없습니다.');
+
+      const header = ['소속', '이름', '제출점수', '정답수', '1차점수', '2차점수', '선택차수', '제출일시'];
+      const lines = rows.map(r => [
+        r.studentId, r.studentName, r.score,
+        r.correctCount ?? '', r.attempt1 ?? '', r.attempt2 ?? '', r.chosen ?? '', r.date
+      ].map(csvCell).join(','));
+      const csvContent = "﻿" + [header.map(csvCell).join(','), ...lines].join('\n');
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `지역화전략_퀴즈성적_${activeQuizClass}_${new Date().toISOString().slice(0,10)}.csv`);
+      link.href = url;
+      link.download = `지역화전략_퀴즈성적_${activeQuizClass === 'all' ? '전체' : activeQuizClass}_${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
 
     /* ----------------------------------------------------
-       SECTION 2: 마스코트 관리자 기능 (캐시 방지 적용)
+       SECTION 2: 마스코트 관리자 기능
     ---------------------------------------------------- */
     function renderMascotClassTabs() {
-      const tabContainer = document.getElementById('mascotClassTabContainer');
-      if (!tabContainer) return;
-      tabContainer.innerHTML = '';
-
-      const tabs = ['all'];
-      for (let i = 1; i <= 13; i++) tabs.push(`${i}반`);
-
-      tabs.forEach(tab => {
-        const btn = document.createElement('button');
-        const isActive = activeMascotClass === tab;
-        const labelText = tab === 'all' ? '전체 보기' : tab;
-
-        btn.className = isActive
-          ? "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-900 text-white shadow-sm shrink-0"
-          : "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200/80 shrink-0";
-
-        btn.innerText = labelText;
-        btn.onclick = () => {
-          activeMascotClass = tab;
-          renderMascotClassTabs();
-          renderMascotGrid();
-        };
-
-        tabContainer.appendChild(btn);
+      renderClassTabs('mascotClassTabContainer', activeMascotClass, tab => {
+        activeMascotClass = tab;
+        renderMascotClassTabs();
+        renderMascotGrid();
       });
     }
 
-    async function fetchMascotData() {
+    async function fetchMascotData(showResultToast = false) {
+      if (!adminKey) return;
       const icon = document.getElementById('mascotRefreshIcon');
       if (icon) icon.classList.add('fa-spin');
 
       try {
-        // 📌 캐시 방지 파라미터 (_t) 추가
-        const response = await fetch(MASCOT_GAS_URL + "?action=read&_t=" + Date.now());
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          globalMascotData = data;
-          renderMascotGrid();
-          showToast("마스코트 및 투표 명단 업데이트 완료!");
-        }
+        const data = await adminPost(MASCOT_GAS_URL, { action: 'adminList' });
+        globalMascotData = data.data || [];
+        renderMascotGrid();
+        if (showResultToast) showToast("마스코트 및 투표 데이터 업데이트 완료!");
       } catch (err) {
         console.error("마스코트 데이터 로드 실패:", err);
-        showToast("마스코트 데이터를 불러오지 못했습니다.");
+        if (!handleUnauthorized(err)) showToast("마스코트 데이터를 불러오지 못했습니다.");
       } finally {
         if (icon) icon.classList.remove('fa-spin');
       }
@@ -662,7 +725,7 @@
       document.getElementById('statMascotVotes').textContent = `${totalVotes}표`;
 
       if (isAll) {
-        const uniqueClasses = new Set(filteredList.map(item => item.classNum)).size;
+        const uniqueClasses = new Set(filteredList.map(item => String(item.classNum))).size;
         document.getElementById('statMascotClassCount').textContent = `${uniqueClasses}개 반`;
       } else {
         document.getElementById('statMascotClassCount').textContent = `${filteredList.length}명`;
@@ -674,10 +737,9 @@
       const sortFilter = document.getElementById('mascotFilterSort').value;
 
       let list = [...globalMascotData];
-
       if (activeMascotClass !== 'all') {
-        const targetClassNum = activeMascotClass.replace('반', '');
-        list = list.filter(item => String(item.classNum) === String(targetClassNum));
+        const targetClassNum = String(parseInt(activeMascotClass));
+        list = list.filter(item => String(item.classNum) === targetClassNum);
       }
 
       updateMascotStats(list);
@@ -685,91 +747,71 @@
       if (sortFilter === 'votes') {
         list.sort((a, b) => (Number(b.votes) || 0) - (Number(a.votes) || 0));
       } else {
-        list.sort((a, b) => {
-          const cA = Number(a.classNum) || 0;
-          const cB = Number(b.classNum) || 0;
-          if (cA !== cB) return cA - cB;
-          const nA = Number(a.studentNum) || 0;
-          const nB = Number(b.studentNum) || 0;
-          return nA - nB;
-        });
+        list.sort((a, b) =>
+          ((Number(a.classNum) || 0) - (Number(b.classNum) || 0)) ||
+          ((Number(a.studentNum) || 0) - (Number(b.studentNum) || 0)));
       }
+      currentRenderedMascotList = list;
 
       if (list.length === 0) {
         grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-400 text-xs font-medium">제출된 마스코트 데이터가 없습니다.</div>`;
         return;
       }
 
-      let html = '';
-      list.forEach(sub => {
-        const votersListStr = (sub.voters && String(sub.voters).trim() !== "") ? String(sub.voters) : '아직 투표자 없음';
-
-        html += `
-          <div class="bg-white border border-slate-200/80 rounded-xl p-3.5 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between space-y-2">
-            <div>
-              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-                <span class="text-xs font-semibold text-slate-800"><i class="fa-solid fa-user text-slate-400 mr-1"></i> ${sub.author}</span>
-                <button onclick="deleteMascot('${sub.id}')" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/60 rounded text-[11px] font-medium transition-all">
-                  삭제
-                </button>
-              </div>
-
-              <div class="cursor-pointer group" onclick="openMascotModal('${sub.id}')">
-                <div class="aspect-[4/3] bg-slate-50 border border-slate-100 rounded-lg overflow-hidden mb-2 flex items-center justify-center">
-                  <img src="${sub.imageData}" alt="제출 마스코트" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200">
-                </div>
-                <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-2 font-normal">${sub.desc || '설명 없음'}</p>
-              </div>
+      grid.innerHTML = list.map((sub, idx) => `
+        <div class="bg-white border border-slate-200/80 rounded-xl p-4 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between space-y-3">
+          <div>
+            <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
+              <span class="text-xs font-bold text-slate-800"><i class="fa-solid fa-user text-slate-400 mr-1"></i> ${esc(sub.author)}</span>
+              <button onclick="deleteMascot(${idx})" class="px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/60 rounded text-[11px] font-medium transition-all">
+                삭제
+              </button>
             </div>
 
-            <!-- 카드 하단 투표자 요약 -->
-            <div class="pt-2 border-t border-slate-100 space-y-1 text-[11px]">
-              <div class="flex items-center justify-between text-slate-500 mb-1">
-                <span>득표수: <strong class="text-slate-900 font-bold">${sub.votes || 0}</strong>표</span>
-                <button onclick="openMascotModal('${sub.id}')" class="text-slate-700 hover:text-slate-900 font-medium">크게보기 🔍</button>
+            <div class="cursor-pointer group" onclick="openMascotModal(${idx})">
+              <div class="aspect-[4/3] bg-slate-50 border border-slate-100 rounded-lg overflow-hidden mb-2.5 flex items-center justify-center">
+                <img src="${esc(sub.imageData)}" alt="제출 마스코트" class="w-full h-full object-contain group-hover:scale-105 transition-transform duration-200">
               </div>
-              <div class="text-[11px] text-emerald-800 bg-emerald-50/80 border border-emerald-200/60 p-2 rounded leading-snug break-all" title="${votersListStr}">
-                <i class="fa-solid fa-user-check text-emerald-600 mr-1"></i> ${votersListStr}
-              </div>
+              <p class="text-xs text-slate-600 line-clamp-2 leading-relaxed mb-1 font-normal">${esc(sub.desc) || '설명 없음'}</p>
             </div>
           </div>
-        `;
-      });
 
-      grid.innerHTML = html;
+          <!-- 카드 하단: 득표수 강조 및 크게보기 버튼 -->
+          <div class="pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-600">득표수: <strong class="text-base font-bold text-emerald-600 ml-1">${Number(sub.votes) || 0}</strong>표</span>
+            <button onclick="openMascotModal(${idx})" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-lg transition-all flex items-center gap-1 shadow-sm">
+              <span>크게보기</span> 🔍
+            </button>
+          </div>
+        </div>
+      `).join('');
     }
 
-    async function deleteMascot(id) {
-      if (confirm("정말로 이 마스코트를 구글 시트에서 삭제하시겠습니까?")) {
-        showToast("구글 시트에서 삭제하는 중...");
-        try {
-          await fetch(MASCOT_GAS_URL, {
-            method: "POST",
-            body: JSON.stringify({ action: "delete", id: id })
-          });
-          await fetchMascotData();
-          showToast("성공적으로 삭제되었습니다.");
-        } catch (err) {
-          console.error("삭제 실패:", err);
-          showToast("삭제 중 오류가 발생했습니다.");
-        }
+    async function deleteMascot(idx) {
+      const sub = currentRenderedMascotList[idx];
+      if (!sub) return;
+      if (!confirm(`정말로 ${sub.author} 학생의 마스코트를 구글 시트에서 삭제하시겠습니까?\n삭제한 작품과 받은 투표는 되돌릴 수 없습니다.`)) return;
+
+      showToast("구글 시트에서 삭제하는 중...");
+      try {
+        await adminPost(MASCOT_GAS_URL, { action: "delete", id: sub.id });
+        showToast("성공적으로 삭제되었습니다.");
+      } catch (err) {
+        console.error("삭제 실패:", err);
+        if (!handleUnauthorized(err)) showToast("삭제 중 오류가 발생했습니다.");
       }
+      await fetchMascotData();
     }
 
-    function openMascotModal(id) {
-      const sub = globalMascotData.find(item => String(item.id).trim() === String(id).trim());
+    function openMascotModal(idx) {
+      const sub = currentRenderedMascotList[idx];
       if (!sub) return;
 
       document.getElementById('modalMascotTitle').innerText = `${sub.author} 학생의 마스코트`;
       document.getElementById('modalMascotImg').src = sub.imageData;
-      document.getElementById('modalMascotDesc').innerText = sub.desc + `\n\n👍 현재 받은 총 투표수: ${sub.votes || 0}표`;
-      
-      const votersElem = document.getElementById('modalMascotVoters');
-      if (sub.voters && String(sub.voters).trim() !== "") {
-        votersElem.innerText = String(sub.voters);
-      } else {
-        votersElem.innerText = "아직 투표한 학생이 없습니다.";
-      }
+      document.getElementById('modalMascotDesc').innerText = (sub.desc || '') + `\n\n👍 현재 받은 총 투표수: ${sub.votes || 0}표`;
+      document.getElementById('modalMascotVoters').innerText =
+        String(sub.voters || '').trim() !== "" ? String(sub.voters) : "아직 투표한 학생이 없습니다.";
 
       document.getElementById('modalMascotDetail').classList.remove('hidden');
     }
@@ -781,8 +823,16 @@
     window.onload = function() {
       renderQuizClassTabs();
       renderMascotClassTabs();
-      fetchQuizData();
-      fetchMascotData(); // 📌 페이지 초기 로드 시 마스코트 데이터 함께 불러오기
+
+      // 같은 탭에서는 비밀번호를 다시 묻지 않는다 (탭을 닫으면 지워짐)
+      try { adminKey = sessionStorage.getItem(KEY_STORAGE) || ''; } catch (e) {}
+      if (adminKey) {
+        document.getElementById('adminLoginOverlay').classList.add('hidden');
+        fetchQuizData();
+        fetchMascotData();
+      } else {
+        showAdminLogin();
+      }
     };
   </script>
 </body>

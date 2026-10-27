@@ -294,7 +294,6 @@
 
   <script>
     const QUIZ_GAS_URL = "https://script.google.com/macros/s/AKfycbwYADtUhL9w1tz8mFqWjfdouv8tuEkYx6Dv5KxSyc03H2OCNK3JTkY-FTlnAr5VXon5/exec";
-    // 📌 최신 배포 Google Apps Script Web App URL
     const MASCOT_GAS_URL = "https://script.google.com/macros/s/AKfycbw_s7MmD4cmQzOBTEUZQ823ACGV9vkFzJTgBeTAAR35Y0u-POO84Q3BHWihLo1YE3Z4/exec";
 
     let globalQuizData = [];
@@ -319,6 +318,9 @@
         btnQuiz.className = "flex-1 md:flex-none px-4 py-2 rounded-md text-xs font-medium transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-2";
         secMascot.classList.remove('hidden');
         secQuiz.classList.add('hidden');
+        
+        // 📌 마스코트 탭 클릭 시 최신 데이터 자동 조회
+        fetchMascotData();
       }
     }
 
@@ -372,7 +374,7 @@
       if (icon) icon.classList.add('fa-spin');
 
       try {
-        const res = await fetch(QUIZ_GAS_URL);
+        const res = await fetch(QUIZ_GAS_URL + "?_t=" + Date.now());
         const data = await res.json();
         globalQuizData = Array.isArray(data) ? data : [];
         filterAndRenderQuizTable();
@@ -598,7 +600,7 @@
     }
 
     /* ----------------------------------------------------
-       SECTION 2: 마스코트 관리자 기능 (투표자 표시 연동)
+       SECTION 2: 마스코트 관리자 기능 (캐시 방지 적용)
     ---------------------------------------------------- */
     function renderMascotClassTabs() {
       const tabContainer = document.getElementById('mascotClassTabContainer');
@@ -633,12 +635,13 @@
       if (icon) icon.classList.add('fa-spin');
 
       try {
-        const response = await fetch(MASCOT_GAS_URL + "?action=read");
+        // 📌 캐시 방지 파라미터 (_t) 추가
+        const response = await fetch(MASCOT_GAS_URL + "?action=read&_t=" + Date.now());
         const data = await response.json();
         if (Array.isArray(data)) {
           globalMascotData = data;
           renderMascotGrid();
-          showToast("마스코트 제출 및 투표 데이터 업데이트 완료!");
+          showToast("마스코트 및 투표 명단 업데이트 완료!");
         }
       } catch (err) {
         console.error("마스코트 데이터 로드 실패:", err);
@@ -699,7 +702,7 @@
 
       let html = '';
       list.forEach(sub => {
-        const votersListStr = sub.voters ? sub.voters : '아직 투표자 없음';
+        const votersListStr = (sub.voters && String(sub.voters).trim() !== "") ? String(sub.voters) : '아직 투표자 없음';
 
         html += `
           <div class="bg-white border border-slate-200/80 rounded-xl p-3.5 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between space-y-2">
@@ -721,12 +724,12 @@
 
             <!-- 카드 하단 투표자 요약 -->
             <div class="pt-2 border-t border-slate-100 space-y-1 text-[11px]">
-              <div class="flex items-center justify-between text-slate-500">
+              <div class="flex items-center justify-between text-slate-500 mb-1">
                 <span>득표수: <strong class="text-slate-900 font-bold">${sub.votes || 0}</strong>표</span>
                 <button onclick="openMascotModal('${sub.id}')" class="text-slate-700 hover:text-slate-900 font-medium">크게보기 🔍</button>
               </div>
-              <div class="text-[10px] text-slate-400 truncate" title="${votersListStr}">
-                <i class="fa-solid fa-user-check text-slate-400"></i> ${votersListStr}
+              <div class="text-[11px] text-emerald-800 bg-emerald-50/80 border border-emerald-200/60 p-2 rounded leading-snug break-all" title="${votersListStr}">
+                <i class="fa-solid fa-user-check text-emerald-600 mr-1"></i> ${votersListStr}
               </div>
             </div>
           </div>
@@ -754,7 +757,7 @@
     }
 
     function openMascotModal(id) {
-      const sub = globalMascotData.find(item => item.id === id);
+      const sub = globalMascotData.find(item => String(item.id).trim() === String(id).trim());
       if (!sub) return;
 
       document.getElementById('modalMascotTitle').innerText = `${sub.author} 학생의 마스코트`;
@@ -762,8 +765,8 @@
       document.getElementById('modalMascotDesc').innerText = sub.desc + `\n\n👍 현재 받은 총 투표수: ${sub.votes || 0}표`;
       
       const votersElem = document.getElementById('modalMascotVoters');
-      if (sub.voters && sub.voters.trim() !== "") {
-        votersElem.innerText = sub.voters;
+      if (sub.voters && String(sub.voters).trim() !== "") {
+        votersElem.innerText = String(sub.voters);
       } else {
         votersElem.innerText = "아직 투표한 학생이 없습니다.";
       }
@@ -779,6 +782,7 @@
       renderQuizClassTabs();
       renderMascotClassTabs();
       fetchQuizData();
+      fetchMascotData(); // 📌 페이지 초기 로드 시 마스코트 데이터 함께 불러오기
     };
   </script>
 </body>
